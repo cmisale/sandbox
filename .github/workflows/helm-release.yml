@@ -40,7 +40,7 @@ jobs:
         env:
           CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         with:
-          charts_dir: helm-charts/autopilot
+          charts_dir: helm-charts
           packages_with_index: true
 
   
