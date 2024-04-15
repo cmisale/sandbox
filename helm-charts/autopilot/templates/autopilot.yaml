@@ -1,0 +1,95 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  labels:
+    app: autopilot
+  name: {{ printf "%s-%s" .Chart.Name .Release.Name }}
+  namespace: {{ .Values.namespace.name }}
+spec:
+  selector:
+    matchLabels:
+      app: autopilot
+  template:
+    metadata:
+      annotations:
+      {{- toYaml .Values.annotations | nindent 8 }}
+      labels:
+        app: autopilot
+    spec:
+      {{- if .Values.affinity }}
+      affinity:
+      {{- toYaml .Values.affinity | nindent 8 }}
+      {{- end}}
+      {{- if .Values.nodeSelector }}
+      nodeSelector:
+      {{- toYaml .Values.nodeSelector | nindent 8 }}
+      {{- end}}
+      serviceAccountName: autopilot
+      imagePullSecrets:
+      - name: {{ .Values.pullSecrets.name }}
+      {{- if .Values.gpuEnabled }}
+      initContainers:
+        - args:
+          - until [ -f /usr/bin/nvidia-smi ]; do echo waiting for nvidia device plug-in to be setup; sleep 5 && exit -1; done
+          command:
+          - sh
+          - -c
+          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
+          imagePullPolicy: Always
+          name: device-plugin-validation
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            runAsNonRoot: true
+      {{- end}}
+      containers:
+        - image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
+          command:
+           - sh
+           - -c
+           - |
+             iperf3 -s -p 6310 -D 
+             /usr/local/bin/autopilot --port {{ .Values.service.port }} --loglevel={{ .Values.loglevel }} --bw {{ .Values.PCIeBW }} --w {{ .Values.repeat }} --intrusive-check-timer {{ .Values.intrusive }}
+          imagePullPolicy: {{ .Values.image.pullPolicy }} 
+          name: autopilot
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            runAsNonRoot: true
+          env:
+          {{- range .Values.env }}
+            - name: {{ .name }}
+              value: {{ .value }}
+          {{- end }} 
+            - name: "NODE_NAME"
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: "NAMESPACE"
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: "POD_NAME"
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          ports:
+            - containerPort: {{ .Values.service.port }}
+              name: healthcheck
+            - containerPort: 8081
+              name: http
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.additionalVolumeMounts }}
+            {{- toYaml .Values.additionalVolumeMounts | nindent 12 }}
+            {{- end }}
+      volumes:
+        {{- if .Values.additionalVolumeClaimTemplates }}
+        {{- toYaml .Values.additionalVolumeClaimTemplates | nindent 8 }}
+        {{- end}}
+          

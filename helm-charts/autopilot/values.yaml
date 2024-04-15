@@ -1,0 +1,79 @@
+# Default values for the Autopilot DaemonSet.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+namespace: 
+  create: true
+  name: autopilot
+
+image:
+  repository:  quay.io/autopilot/autopilot
+  tag: v1.6.0
+  pullPolicy: Always
+
+# Bandwidth threshold below which PCIe links are considered broken (Gb/s)
+PCIeBW: 4
+
+# Timer for periodic checks, in hours
+repeat: 1
+
+# Timer for periodic invasive checks, in hours (e.g., dcgmi diag -r 3)
+intrusive: 4
+
+# Image pull secret if the image is in a private repository
+pullSecrets:
+  create: false
+  name: autopilot-pull-secret
+  imagePullSecretData: 
+  
+# List of periodic checks to be executed every `repeat` hours
+env:
+    - name: "PERIODIC_CHECKS"
+      value: "pciebw,remapped,dcgm,ping,gpupower"
+
+service:
+  port: 3333
+
+annotations:
+  # k8s.v1.cni.cncf.io/networks: multi-nic-network
+
+nodeSelector:
+  nvidia.com/gpu.present: 'true'
+  # nvidia.com/mig.config: 'all-disabled'
+
+affinity:
+
+gpuEnabled: true
+
+resources: 
+  # We advice to not set cpu and memory limits. DCGM requires several GB of memory to run and it may OOMKill the pod
+  limits:
+    nvidia.com/gpu: 0
+  requests:
+    nvidia.com/gpu: 0
+
+# serviceAnnotations:
+#    service.beta.openshift.io/serving-cert-secret-name: autopilot
+
+
+# configAnnotations: 
+#   service.beta.openshift.io/inject-cabundle: "true"
+
+# klog configuration
+loglevel: 2
+# logfile: "/home/autopilot/data/report.log"
+
+# optional remote storage. A PVC and secret must exist
+additionalVolumeClaimTemplates:
+  # - name: logdir
+  #   persistentVolumeClaim:
+  #     claimName: my-pvc
+  # - name: autopilot-tls-secret
+  #   secret:
+  #     secretName: autopilot-webhook
+additionalVolumeMounts:
+  # - name: autopilot-tls-secret
+  #   mountPath: "/etc/autopilot-tls-secret/tls"
+  #   readOnly: true
+  # - mountPath: /data
+  #   name: logdir
