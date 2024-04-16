@@ -3,6 +3,16 @@ entries:
   autopilot-daemon:
   - apiVersion: v2
     appVersion: latest
+    created: "2024-04-16T02:32:06.414783065Z"
+    description: A Helm chart for Kubernetes
+    digest: 24c56a307affa240f312dd36a09b11fb0b55e2246c839f25d14e8b984fae7a8d
+    name: autopilot-daemon
+    type: application
+    urls:
+    - autopilot-daemon-1.6.1.tgz
+    version: 1.6.1
+  - apiVersion: v2
+    appVersion: latest
     created: "2024-04-15T15:38:42.070678466Z"
     description: A Helm chart for Kubernetes
     digest: 10ad54bfc2c543f6f15deb9bfe1cfea82c2f6c62512a7391bd17497de5d982fe
@@ -11,4 +21,4 @@ entries:
     urls:
     - autopilot-daemon-1.6.0.tgz
     version: 1.6.0
-generated: "2024-04-15T15:38:42.070690087Z"
+generated: "2024-04-16T02:32:06.41479678Z"
