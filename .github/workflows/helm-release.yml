@@ -45,7 +45,6 @@ jobs:
           charts_dir: helm-charts
           packages_with_index: true
           token: ${{ secrets.GITHUB_TOKEN }}
-          branch: gh-pages
       
 
   
