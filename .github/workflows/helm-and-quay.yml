@@ -57,7 +57,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: quay.io/autopilot/autopilot
+          images: quay.io/talos/test
           tags: ${{ env.CHART_VERSION }}
       
       - name: Log into registry 
