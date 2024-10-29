@@ -72,4 +72,5 @@ jobs:
         with:
           context: autopilot-daemon
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
+          tags: |
+            quay.io/talos/autopilot:${{ env.CHART_VERSION }}
