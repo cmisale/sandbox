@@ -71,4 +71,5 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: autopilot-daemon
+          push: true
           tags: ${{ env.CHART_VERSION }}    
