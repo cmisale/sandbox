@@ -3,8 +3,7 @@ kind: DaemonSet
 metadata:
   labels:
     app: autopilot
-  name: {{ printf "%s-%s" .Chart.Name .Release.Name }}
-  namespace: {{ .Values.namespace.name }}
+  name: {{ printf "%s" .Chart.Name }}
 spec:
   selector:
     matchLabels:
@@ -20,46 +19,48 @@ spec:
       affinity:
       {{- toYaml .Values.affinity | nindent 8 }}
       {{- end}}
-      {{- if .Values.nodeSelector }}
       nodeSelector:
+      {{- if .Values.nodeSelector }}
       {{- toYaml .Values.nodeSelector | nindent 8 }}
       {{- end}}
+      {{- if .Values.onlyOnGPUNodes }}
+        nvidia.com/gpu.present: 'true'
+      {{- end}}
       serviceAccountName: autopilot
+      {{- if .Values.pullSecrets.create }}
       imagePullSecrets:
       - name: {{ .Values.pullSecrets.name }}
-      {{- if .Values.gpuEnabled }}
+      {{- end}}
+      {{- if .Values.onlyOnGPUNodes }}
       initContainers:
         - args:
           - until [ -f /usr/bin/nvidia-smi ]; do echo waiting for nvidia device plug-in to be setup; sleep 5 && exit -1; done
           command:
           - sh
           - -c
-          image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
+          image: {{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}
           imagePullPolicy: Always
           name: device-plugin-validation
           securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-              - ALL
             runAsNonRoot: true
+            runAsUser: 1000910000
       {{- end}}
       containers:
-        - image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
+        - image: {{ .Values.image.repository }}:{{ default .Chart.AppVersion .Values.image.tag }}
           command:
            - sh
            - -c
            - |
-             iperf3 -s -p 6310 -D 
-             /usr/local/bin/autopilot --port {{ .Values.service.port }} --loglevel={{ .Values.loglevel }} --bw {{ .Values.PCIeBW }} --w {{ .Values.repeat }} --intrusive-check-timer {{ .Values.intrusive }}
+             /usr/local/bin/autopilot --port {{ .Values.service.port }} --loglevel={{ .Values.loglevel }} --bw {{ .Values.PCIeBW }} --w {{ .Values.repeat }} --invasive-check-timer {{ .Values.invasive }}
           imagePullPolicy: {{ .Values.image.pullPolicy }} 
           name: autopilot
           securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-              - ALL
             runAsNonRoot: true
+            runAsUser: 1000910000
+            capabilities:
+                add:
+                - NET_RAW
+                - NET_ADMIN
           env:
           {{- range .Values.env }}
             - name: {{ .name }}
@@ -82,6 +83,28 @@ spec:
               name: healthcheck
             - containerPort: 8081
               name: http
+            - containerPort: 8080
+              name: readinessprobe
+          readinessProbe:
+            httpGet:
+              path: /readinessprobe
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 120
+            timeoutSeconds: 10
+          livenessProbe:
+            initialDelaySeconds: 15
+            periodSeconds: 120
+            timeoutSeconds: 15
+          {{- if .Values.onlyOnGPUNodes }}
+            exec:
+              command:
+                - nvidia-smi
+          {{- else }}
+            httpGet:
+              path: /readinessprobe
+              port: 8080
+          {{- end}}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:

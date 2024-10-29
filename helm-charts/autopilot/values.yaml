@@ -1,14 +1,8 @@
 # Default values for the Autopilot DaemonSet.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
-
-namespace: 
-  create: true
-  name: autopilot
-
 image:
-  repository:  quay.io/autopilot/autopilot
-  tag: v1.6.0
+  repository: quay.io/autopilot/autopilot
   pullPolicy: Always
 
 # Bandwidth threshold below which PCIe links are considered broken (Gb/s)
@@ -17,8 +11,8 @@ PCIeBW: 4
 # Timer for periodic checks, in hours
 repeat: 1
 
-# Timer for periodic invasive checks, in hours (e.g., dcgmi diag -r 3)
-intrusive: 4
+# Timer for periodic invasive checks, in hours (e.g., dcgmi diag -r 3). Set to 0 to disable (for non nvidia gpu systems)
+invasive: 4
 
 # Image pull secret if the image is in a private repository
 pullSecrets:
@@ -26,10 +20,13 @@ pullSecrets:
   name: autopilot-pull-secret
   imagePullSecretData: 
   
-# List of periodic checks to be executed every `repeat` hours
+# List of periodic checks to be executed every `repeat` hours.
+# If not running on GPU nodes, pciebw,remapped,dcgm and gpupower can be removed
 env:
-    - name: "PERIODIC_CHECKS"
-      value: "pciebw,remapped,dcgm,ping,gpupower"
+  - name: "PERIODIC_CHECKS"
+    value: "pciebw,remapped,dcgm,ping,gpupower"
+  - name: "PVC_TEST_STORAGE_CLASS"
+    value: ""
 
 service:
   port: 3333
@@ -38,12 +35,15 @@ annotations:
   # k8s.v1.cni.cncf.io/networks: multi-nic-network
 
 nodeSelector:
-  nvidia.com/gpu.present: 'true'
+  # nvidia.com/gpu.present: 'true'
   # nvidia.com/mig.config: 'all-disabled'
 
 affinity:
 
-gpuEnabled: true
+# Running on GPU nodes only, will:
+# 1) add the `nvidia.com/gpu.present: 'true'` label and 
+# 2) enable the init container, which checks on the nvidia device plug-in to be setup
+onlyOnGPUNodes: true
 
 resources: 
   # We advice to not set cpu and memory limits. DCGM requires several GB of memory to run and it may OOMKill the pod
@@ -51,13 +51,6 @@ resources:
     nvidia.com/gpu: 0
   requests:
     nvidia.com/gpu: 0
-
-# serviceAnnotations:
-#    service.beta.openshift.io/serving-cert-secret-name: autopilot
-
-
-# configAnnotations: 
-#   service.beta.openshift.io/inject-cabundle: "true"
 
 # klog configuration
 loglevel: 2
