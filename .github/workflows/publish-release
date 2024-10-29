@@ -1,0 +1,73 @@
+name: Publish Release
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  release:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "$GITHUB_ACTOR"
+          git config user.email "$GITHUB_ACTOR@users.noreply.github.com"
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run chart-releaser
+        uses: helm/chart-releaser-action@v1.6.0
+        env:
+          CR_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+          CR_SKIP_EXISTING: true
+        with:
+          pages_branch: gh-pages
+          charts_dir: helm-charts/autopilot
+          skip_existing: true
+          packages_with_index: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remove unnecessary files
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+      
+      - name: Read helm chart version
+        run: echo "CHART_VERSION=$(grep '^version:' helm-charts/autopilot/Chart.yaml | cut -d ":" -f2 | tr -d ' ')" >> $GITHUB_ENV
+      
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Docker meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: quay.io/autopilot/autopilot
+          tags: ${{ env.CHART_VERSION }}
+      
+      - name: Log into registry 
+        uses: docker/login-action@v3
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_PASSWORD }}
+     
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: autopilot-daemon
+          push: ${{ github.event_name == 'release' }}
+          tags: ${{ env.CHART_VERSION }}    
