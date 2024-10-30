@@ -46,7 +46,12 @@ jobs:
         run: |
           sudo rm -rf /usr/share/dotnet
           sudo rm -rf /usr/local/lib/android
-      
+          
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          
       - name: Read helm chart version
         run: echo "CHART_VERSION=$(grep '^version:' helm-charts/autopilot/Chart.yaml | cut -d ":" -f2 | tr -d ' ')" >> $GITHUB_ENV
       
@@ -72,5 +77,3 @@ jobs:
         with:
           context: autopilot-daemon
           push: true
-          tags: |
-            quay.io/talos/autopilot:${{ env.CHART_VERSION }}
