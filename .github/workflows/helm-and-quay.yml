@@ -2,8 +2,6 @@
 
 name: helm-and-quay
 on:
-  release:
-    types: [published]
   workflow_dispatch:
 
 jobs:
